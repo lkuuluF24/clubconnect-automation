@@ -10,7 +10,7 @@ from itertools import groupby
 from . import planner
 from .client import ApiError, Blocked, ClubConnectClient, Guard
 from .config import DAY_NAMES, Account, Course, Settings
-from .notify import Notifier
+from .notify import Notifier, WebhookNotifier
 
 log = logging.getLogger(__name__)
 
@@ -47,17 +47,28 @@ class Job:
     waiting: bool = False
 
 
+def account_webhook(account: Account) -> Notifier | None:
+    return WebhookNotifier(account.webhook, account.webhook_method) if account.webhook else None
+
+
+def _level(outcomes: list[Outcome], blocked: str | None) -> str:
+    if blocked:
+        return "error"
+    return "warning" if any(o.status in FAILURES for o in outcomes) else "info"
+
+
 def _unique(accounts) -> list[Account]:
     return list({a.name: a for a in accounts}.values())
 
 
 class Runner:
     def __init__(self, settings: Settings, accounts: list[Account], notifier: Notifier, *,
-                 dry_run: bool = False, wait: bool = True, transport=None,
+                 dry_run: bool = False, wait: bool = True, transport=None, account_notifier=account_webhook,
                  now=lambda: datetime.now(timezone.utc), sleep=time.sleep, clock=time.monotonic):
         self.settings = settings
         self.accounts = accounts
         self.notifier = notifier
+        self._account_notifier = account_notifier
         self.dry_run = dry_run
         self.wait = wait
         self._transport = transport
@@ -277,12 +288,18 @@ class Runner:
             log.info("%s", outcome)
         if not self.outcomes and not self.blocked:
             return
-        lines = [str(o) for o in self.outcomes]
-        if self.blocked:
-            lines.insert(0, f"ARRÊT DE SÉCURITÉ : {self.blocked}")
-            level = "error"
-        elif any(o.status in FAILURES for o in self.outcomes):
-            level = "warning"
-        else:
-            level = "info"
-        self.notifier.send(f"ClubConnect {target:%d/%m}", "\n".join(lines), level)
+        title = f"ClubConnect {target:%d/%m}"
+        header = [f"ARRÊT DE SÉCURITÉ : {self.blocked}"] if self.blocked else []
+        lines = header + [str(o) for o in self.outcomes]
+        self.notifier.send(title, "\n".join(lines), _level(self.outcomes, self.blocked))
+
+        # Webhook propre à chaque compte : uniquement ses propres cours
+        for account in self.accounts:
+            mine = [o for o in self.outcomes if o.account == account.name]
+            notifier = self._account_notifier(account)
+            if notifier is None or not (mine or self.blocked):
+                continue
+            lines = header + [f"{o.course} : {o.status}" + (f" ({o.detail})" if o.detail else "") for o in mine]
+            data = {"account": account.name, "date": target.isoformat(),
+                    "outcomes": [{"course": o.course, "status": o.status, "detail": o.detail} for o in mine]}
+            notifier.send(title, "\n".join(lines), _level(mine, self.blocked), data)

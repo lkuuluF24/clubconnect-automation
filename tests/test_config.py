@@ -54,3 +54,16 @@ def test_unknown_day(tmp_path):
 def test_interval_floor(tmp_path):
     with pytest.raises(ConfigError, match="min_interval"):
         load(*write(tmp_path, config=CONFIG + "safety:\n  min_interval_seconds: 0.2\n"))
+
+
+def test_account_webhook(tmp_path):
+    env = ENV + "ACCOUNT_LUC_WEBHOOK=https://ha.example/api/webhook/abc\nACCOUNT_LUC_WEBHOOK_METHOD=put\n"
+    _, (luc, marie), _ = load(*write(tmp_path, env=env))
+    assert (luc.webhook, luc.webhook_method) == ("https://ha.example/api/webhook/abc", "PUT")
+    assert marie.webhook is None
+    assert "abc" not in repr(luc)
+
+
+def test_account_webhook_bad_method(tmp_path):
+    with pytest.raises(ConfigError, match="POST ou PUT"):
+        load(*write(tmp_path, env=ENV + "ACCOUNT_LUC_WEBHOOK_METHOD=GET\n"))

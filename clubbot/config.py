@@ -35,6 +35,8 @@ class Account:
     email: str
     password: str = field(repr=False)
     courses: list[Course] = field(default_factory=list)
+    webhook: str | None = field(default=None, repr=False)
+    webhook_method: str = "POST"
 
 
 @dataclass
@@ -134,6 +136,10 @@ def load(config_path: Path, env_path: Path | None) -> tuple[Settings, list[Accou
         email, password = env.get(f"{key}_EMAIL"), env.get(f"{key}_PASSWORD")
         if not email or not password:
             raise ConfigError(f"{key}_EMAIL / {key}_PASSWORD manquants dans .env")
+        method = (env.get(f"{key}_WEBHOOK_METHOD") or "POST").upper()
+        if method not in ("POST", "PUT"):
+            raise ConfigError(f"{key}_WEBHOOK_METHOD doit valoir POST ou PUT")
         extra = [_course(c) for c in acc.get("extra_courses") or []]
-        accounts.append(Account(str(name), email, password, list(dict.fromkeys(common + extra))))
+        accounts.append(Account(str(name), email, password, list(dict.fromkeys(common + extra)),
+                                env.get(f"{key}_WEBHOOK") or None, method))
     return settings, accounts, env.get("NOTIFY_WEBHOOK_URL") or None

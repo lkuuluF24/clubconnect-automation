@@ -100,7 +100,14 @@ Codes de sortie :
 
 ## Notifications
 
-Si `NOTIFY_WEBHOOK_URL` est défini dans `.env`, le résumé est envoyé en POST JSON `{title, message, level}`. Sinon il est seulement écrit dans le journal. C'est compatible avec un webhook Home Assistant : dans une automatisation, `trigger.json.message` contient le résumé.
+- `ACCOUNT_<NOM>_WEBHOOK` (optionnel, un par compte) : reçoit le résultat des seuls cours de ce compte.
+  - Méthode POST par défaut, ou PUT avec `ACCOUNT_<NOM>_WEBHOOK_METHOD=PUT`.
+  - Corps JSON : `{title, message, level, account, date, outcomes: [{course, status, detail}]}`.
+  - `status` vaut par exemple `réservé`, `liste d'attente`, `déjà inscrit`, `absent du planning`, `complet` ou `échec`.
+- `NOTIFY_WEBHOOK_URL` (optionnel) : résumé de tous les comptes, envoyé en POST `{title, message, level}`. Sans cette variable, le résumé est seulement écrit dans le journal.
+- Un arrêt de sécurité est signalé à tous les webhooks, avec `level: error`.
+
+C'est compatible avec Home Assistant : dans l'automatisation déclenchée par le webhook, utiliser `{{ trigger.json.message }}` dans la notification.
 
 ## Tests
 

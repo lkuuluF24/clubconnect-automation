@@ -16,8 +16,8 @@ class RecordingNotifier(Notifier):
     def __init__(self):
         self.sent = []
 
-    def send(self, title, message, level="info"):
-        self.sent.append((title, message, level))
+    def send(self, title, message, level="info", data=None):
+        self.sent.append((title, message, level, data))
 
 
 def accounts(*courses_per_account):
@@ -144,3 +144,21 @@ def test_explicit_date(clock, tmp_path, seances):
     runner = Runner(settings, accounts([MONDAY_1845]), RecordingNotifier(), transport=site.transport(),
                     now=clock.now, sleep=clock.sleep, clock=clock.monotonic)
     assert statuses(runner.run(date(2026, 11, 2))) == [("user0", BOOKED)]
+
+
+def test_each_account_webhook_gets_only_its_own_courses(clock, tmp_path, seances):
+    site = FakeSite(clock, seances)
+    cycling = Course(0, "19:45", "AQUA CYCLING")
+    per_account = {}
+
+    def account_notifier(account):
+        return per_account.setdefault(account.name, RecordingNotifier()) if account.name == "user1" else None
+
+    settings = Settings(club_id=CLUB, lock_file=tmp_path / "blocked.json")
+    runner = Runner(settings, accounts([MONDAY_1845], [cycling]), RecordingNotifier(), transport=site.transport(),
+                    now=clock.now, sleep=clock.sleep, clock=clock.monotonic, account_notifier=account_notifier)
+    runner.run()
+    [(title, message, level, data)] = per_account["user1"].sent
+    assert title == "ClubConnect 02/11" and level == "info"
+    assert message == f"{cycling} : {BOOKED}"
+    assert data["account"] == "user1" and [o["status"] for o in data["outcomes"]] == [BOOKED]
