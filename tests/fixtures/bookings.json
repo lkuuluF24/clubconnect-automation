@@ -1,0 +1,46 @@
+[
+  {
+    "id": "6ad06be18be97a3bb7d9122b",
+    "creation": {
+      "date": "2026-10-15T04:00:01.297Z"
+    },
+    "canceled": false,
+    "waiting": false,
+    "cancelationLimit": "2026-10-29T17:45:00.000Z",
+    "seance": {
+      "id": "6a998b3c255bf80f6dbf9e5c",
+      "name": "AQUA POWER",
+      "starts": "2026-10-29T17:45:00.000Z",
+      "ends": "2026-10-29T18:30:00.000Z"
+    },
+    "club": {
+      "id": "67190ce4e464b78523032c8a",
+      "name": "Hudolia"
+    },
+    "ccClub": {
+      "id": "67190ce4e464b78523032c8a"
+    }
+  },
+  {
+    "id": "6acdc8e43075a7f39fb96e53",
+    "creation": {
+      "date": "2026-10-13T04:00:04.154Z"
+    },
+    "canceled": false,
+    "waiting": false,
+    "cancelationLimit": "2026-10-27T18:00:00.000Z",
+    "seance": {
+      "id": "6a998b3c255bf80f6dbf9e51",
+      "name": "AQUA POWER",
+      "starts": "2026-10-27T18:00:00.000Z",
+      "ends": "2026-10-27T18:45:00.000Z"
+    },
+    "club": {
+      "id": "67190ce4e464b78523032c8a",
+      "name": "Hudolia"
+    },
+    "ccClub": {
+      "id": "67190ce4e464b78523032c8a"
+    }
+  }
+]

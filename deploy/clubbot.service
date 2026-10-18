@@ -1,0 +1,10 @@
+[Unit]
+Description=Réservation ClubConnect J+14
+Wants=network-online.target
+After=network-online.target time-sync.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/clubbot
+ExecStart=/opt/clubbot/.venv/bin/python -m clubbot
+User=clubbot

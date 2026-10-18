@@ -1,0 +1,16 @@
+services:
+  clubbot:
+    image: clubbot:latest
+    build: .
+    env_file: .env              # ACCOUNT_<NOM>_EMAIL / _PASSWORD, NOTIFY_WEBHOOK_URL
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - clubbot-state:/app/state
+    init: true                  # arrêt propre sur docker stop
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+
+volumes:
+  clubbot-state:

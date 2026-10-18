@@ -1,0 +1,28 @@
+club_id: "67190ce4e464b78523032c8a"   # Hudolia
+timezone: Europe/Paris
+days_ahead: 14            # on réserve les cours de J+14
+expected_open: "08:00"    # heure d'ouverture attendue ; l'heure réelle vient de bookable.notBefore
+max_wait_minutes: 120     # au-delà, on n'attend pas l'ouverture
+fire_offset_seconds: 1    # marge après l'ouverture (décalage d'horloge avec le serveur)
+waitlist: true            # cours complet -> liste d'attente
+
+# Garde-fous anti-blacklist (IP partagée par tous les comptes)
+safety:
+  min_interval_seconds: 1.5    # espacement minimal entre deux requêtes, tous comptes confondus (≥ 1)
+  account_delay_seconds: 5     # pause avant la connexion de chaque compte suivant
+  max_requests_per_run: 30     # plafond dur par passage
+  block_hours: 24              # après un 429/403/page HTML : plus aucune requête pendant ce délai
+  lock_file: state/blocked.json
+
+# Cours communs à tous les comptes (jour + heure de Paris + nom exact du cours)
+common_courses:
+  - { day: lundi, time: "18:45", name: "AQUA POWER" }
+  - { day: mardi, time: "19:00", name: "AQUA POWER" }
+  - { day: jeudi, time: "18:45", name: "AQUA POWER" }
+
+# Un compte = ACCOUNT_<NOM>_EMAIL / ACCOUNT_<NOM>_PASSWORD dans .env
+accounts:
+  luc:
+  # autre:
+  #   extra_courses:
+  #     - { day: mercredi, time: "19:45", name: "AQUA CYCLING" }

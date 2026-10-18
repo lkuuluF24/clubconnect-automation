@@ -1,0 +1,8 @@
+.env
+.venv/
+state/
+**/__pycache__/
+.pytest_cache/
+*.har
+main.*.js
+deploy/
