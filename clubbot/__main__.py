@@ -7,9 +7,10 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
-from .config import ConfigError, _hhmm, load
+from .config import DAY_NAMES, Account, ConfigError, Settings, _hhmm, load
 from .notify import LogNotifier, WebhookNotifier
 from .runner import FAILURES, Runner
 
@@ -32,15 +33,51 @@ def next_run(now: datetime, at: str, tz: ZoneInfo) -> datetime:
     return candidate
 
 
+def _host(url: str) -> str:
+    # l'identifiant d'un webhook Home Assistant est un secret : on n'affiche que l'hôte
+    return urlsplit(url).hostname or "?"
+
+
+def describe(settings: Settings, accounts: list[Account], webhook: str | None) -> list[str]:
+    """Ce que le service va faire, affiché au démarrage du conteneur."""
+    lines = [f"Club {settings.club_id} : cours de J+{settings.days_ahead}, ouverture attendue à "
+             f"{settings.expected_open} ({settings.tz.key}), liste d'attente {'oui' if settings.waitlist else 'non'}"]
+    for account in accounts:
+        notif = (f"notification {account.webhook_method} {_host(account.webhook)}"
+                 if account.webhook else "pas de notification")
+        lines.append(f"Compte {account.name} ({account.email}), {notif} :")
+        for course in sorted(account.courses, key=lambda c: (c.weekday, c.time)):
+            lines.append(f"  - {DAY_NAMES[course.weekday]} {course.time} {course.name or '(tout cours à cette heure)'}")
+        if not account.courses:
+            lines.append("  (aucun cours)")
+    lines.append(f"Résumé global : {'webhook ' + _host(webhook) if webhook else 'journal uniquement'}")
+    return lines
+
+
+def upcoming(settings: Settings, accounts: list[Account], start: datetime) -> str:
+    day = start.astimezone(settings.tz).date() + timedelta(days=settings.days_ahead)
+    wanted = [f"{a.name} : {c.name or ''} {c.time}".replace("  ", " ")
+              for a in accounts for c in a.courses if c.weekday == day.weekday()]
+    head = f"cours du {DAY_NAMES[day.weekday()]} {day:%d/%m}"
+    return f"{head} → {', '.join(wanted)}" if wanted else f"{head} → rien à réserver"
+
+
 def every_day(args) -> int:
     """Mode service (Docker) : un passage par jour à l'heure donnée, heure du club."""
+    try:
+        for line in describe(*load(args.config, args.env)):
+            log.info("%s", line)
+    except ConfigError as exc:
+        log.error("Configuration : %s", exc)
     while True:
         try:
-            tz = load(args.config, args.env)[0].tz
+            settings, accounts, _ = load(args.config, args.env)
         except ConfigError:
-            tz = ZoneInfo("Europe/Paris")
+            settings, accounts = None, []
+        tz = settings.tz if settings else ZoneInfo("Europe/Paris")
         target = next_run(datetime.now(timezone.utc), args.every_day, tz)
-        log.info("Prochain passage le %s", f"{target:%d/%m/%Y à %H:%M %Z}")
+        plan = f", {upcoming(settings, accounts, target)}" if settings else ""
+        log.info("Prochain passage le %s%s", f"{target:%d/%m/%Y à %H:%M %Z}", plan)
         while (remaining := (target - datetime.now(timezone.utc)).total_seconds()) > 0:
             time.sleep(min(remaining, 60))
         code = run_once(args)
